@@ -10,6 +10,7 @@ from django.contrib.auth import (
 
 from django.utils.translation import gettext_lazy as _
 
+from core.models import OTP
 
 class UserSerializer(serializers.ModelSerializer):
     """Serializer for user model."""
@@ -57,3 +58,14 @@ class AuthTokenSerializer(serializers.Serializer):
 
         attrs['user'] = user
         return attrs
+    
+
+class OTPSendSerializer(serializers.Serializer):
+    """Serializer for sending email."""
+    email = serializers.EmailField()    
+
+
+class OTPVerifySerializer(serializers.Serializer):
+    """Serializer for verifying OTP."""
+    email = serializers.EmailField()
+    otp = serializers.CharField(max_length=6)

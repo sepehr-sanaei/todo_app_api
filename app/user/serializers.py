@@ -10,7 +10,6 @@ from django.contrib.auth import (
 
 from django.utils.translation import gettext_lazy as _
 
-from core.models import OTP
 
 class UserSerializer(serializers.ModelSerializer):
     """Serializer for user model."""
@@ -58,14 +57,29 @@ class AuthTokenSerializer(serializers.Serializer):
 
         attrs['user'] = user
         return attrs
-    
+
 
 class OTPSendSerializer(serializers.Serializer):
     """Serializer for sending email."""
-    email = serializers.EmailField()    
+    email = serializers.EmailField()
 
 
 class OTPVerifySerializer(serializers.Serializer):
     """Serializer for verifying OTP."""
     email = serializers.EmailField()
-    otp = serializers.CharField(max_length=6)
+    otp = serializers.CharField(max_length=6, trim_whitespace=True)
+
+
+class UserRegistrationSerializer(serializers.Serializer):
+    """Serializer for initial registration step"""
+    email = serializers.EmailField()
+    password = serializers.CharField(write_only=True, min_length=5)
+    name = serializers.CharField(max_length=255)
+
+    def validate_email(self, value):
+        """Validate Email."""
+        if get_user_model().objects.filter(email=value).exists():
+            raise serializers.ValidationError(
+                'User with this email already exists.'
+            )
+        return value

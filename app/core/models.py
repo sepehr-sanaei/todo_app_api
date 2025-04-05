@@ -7,9 +7,8 @@ from django.contrib.auth.models import (
     AbstractBaseUser,
     PermissionsMixin,
 )
-from django.contrib.auth import get_user_model
 
-import time
+from django.utils import timezone
 
 
 class UserManager(BaseUserManager):
@@ -49,11 +48,14 @@ class User(AbstractBaseUser, PermissionsMixin):
 
 class OTP(models.Model):
     """Database model for OTP."""
-    user = models.ForeignKey(get_user_model(), on_delete=models.CASCADE)
+    email = models.EmailField()
     otp = models.CharField(max_length=6)
     created_at = models.DateTimeField(auto_now_add=True)
     is_used = models.BooleanField(default=False)
-    
+    signed_data = models.TextField()
+
     def is_valid(self):
         """Check if the otp is valid."""
-        return not self.is_used and (time.time() - self.created_at.timestamp()) <= 300
+        return not self.is_used and (
+            timezone.now() - self.created_at
+        ).total_seconds() <= 300

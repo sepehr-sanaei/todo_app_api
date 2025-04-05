@@ -8,35 +8,56 @@ from django.urls import reverse
 from rest_framework.test import APIClient
 from rest_framework import status
 
+from unittest.mock import patch
+
+from core.models import OTP
+
 
 CREATE_USER_API = reverse('user:create')
 TOKEN_URL = reverse('user:token')
 ME_URL = reverse('user:me')
+CREATE_USER_API = reverse('user:create')
+VERIFY_USER_API = reverse('user:verify-registration')
 
 
 def create_user(**params):
     return get_user_model().objects.create_user(**params)
 
 
-class PublicUserApiTests(TestCase):
-    """Test public features of user api."""
+@patch('user.tasks.send_otp_email')
+@patch('random.randint')
+def test_create_user_success(self, mock_send_otp, mock_randint):
+    """Test creating user with api is successful."""
 
-    def setUp(self):
-        self.client = APIClient()
+    mock_randint.side_effect = [1, 2, 3, 4, 5, 6]
 
-    def test_create_user_success(self):
-        """Test creating user with api is successful."""
-        payload = {
-            'email': 'test@example.com',
-            'password': 'testpass123',
-            'name': 'Test name'
-        }
-        res = self.client.post(CREATE_USER_API, payload)
+    init_res = self.client.post(CREATE_USER_API, self.payload)
+    self.assertEqual(init_res.status_code, status.HTTP_200_OK)
+    self.assertEqual(
+        init_res.data['detail'],
+        'OTP sent to email. Please verify to complete registration.'
+    )
 
-        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
-        user = get_user_model().objects.get(email=payload['email'])
-        self.assertTrue(user.check_password(payload['password']))
-        self.assertNotIn('password', res.data)
+    otp = OTP.objects.get(email=self.payload['email'])
+    print(f"Generated OTP: {otp.otp}")
+    self.assertEqual(otp.otp, '123456')
+    self.assertFalse(otp.is_used)
+
+    verify_payload = {
+        'email': self.payload['email'],
+        'otp': '123456'
+    }
+    verify_res = self.client.post(VERIFY_USER_API, verify_payload)
+
+    self.assertEqual(verify_res.status_code, status.HTTP_201_CREATED)
+    user = get_user_model().objects.get(email=self.payload['email'])
+    self.assertTrue(user.check_password(self.payload['password']))
+    self.assertNotIn('password', verify_res.data)
+    self.assertTrue(user.is_verified)
+
+    # Verify OTP was marked as used
+    otp.refresh_from_db()
+    self.assertTrue(otp.is_used)
 
     def test_user_with_email_exists_error(self):
         """Test that creating user with used email raises error"""

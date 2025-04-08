@@ -7,6 +7,7 @@ from django.contrib.auth.models import (
     AbstractBaseUser,
     PermissionsMixin,
 )
+from django.conf import settings
 
 from django.utils import timezone
 
@@ -59,3 +60,18 @@ class OTP(models.Model):
         return not self.is_used and (
             timezone.now() - self.created_at
         ).total_seconds() <= 300
+
+
+class Task(models.Model):
+    """Database model for tasks."""
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE
+    )
+    title = models.CharField(max_length=255)
+    description = models.TextField()
+    is_completed = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.title
